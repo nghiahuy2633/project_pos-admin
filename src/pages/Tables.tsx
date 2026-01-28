@@ -83,7 +83,7 @@ export default function TablesPage() {
   const handleOpenDialog = (table?: TableResponse) => {
     if (table) {
       setEditingTable(table);
-      setForm({ tableCode: table.tableCode, capacity: table.capacity });
+      setForm({ tableCode: table.tableCode ?? '', capacity: table.capacity ?? 4 });
     } else {
       setEditingTable(null);
       setForm({ tableCode: '', capacity: 4 });
@@ -247,17 +247,17 @@ export default function TablesPage() {
                         table.status === 'OCCUPIED' ? 'bg-blue-500/20' : 'bg-slate-800/50'
                       )}>
                         <h3 className={cn("text-2xl font-bold", status.iconColor)}>
-                          {table.tableCode.replace(/\D/g, '') || table.tableCode}
+                          {(table.tableCode ?? '').replace(/\D/g, '') || table.tableCode || table.number || '-'}
                         </h3>
                       </div>
                       
                       <h4 className="text-lg font-semibold text-white mb-1">
-                        {table.tableCode}
+                        {table.tableCode || table.number || '-'}
                       </h4>
                       
                       <div className="flex items-center gap-1.5 text-slate-400 mb-4">
                         <Users className="h-3.5 w-3.5" />
-                        <span className="text-sm font-medium">{table.capacity} chỗ</span>
+                        <span className="text-sm font-medium">{table.capacity ?? 0} chỗ</span>
                       </div>
 
                       <span

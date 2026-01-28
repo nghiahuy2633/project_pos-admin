@@ -57,6 +57,17 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface OrderItemResponse {
+  id: UUID;
+  productId: UUID;
+  productName: string;
+  quantity: number;
+  price: number;
+  note?: string;
+  notes?: string;
+  status?: string;
+}
+
 export interface OrderResponse {
   orderId?: UUID;
   tableId?: UUID;
@@ -67,6 +78,7 @@ export interface OrderResponse {
   createdAt?: LocalDateTime;
   confirmedAt?: LocalDateTime;
   cancelledAt?: LocalDateTime;
+  items?: OrderItemResponse[]; // Add items field
 }
 
 // Specific Type Alias for Paginated Orders
@@ -106,9 +118,10 @@ export interface ProductResponse {
 
 export interface TableResponse {
   id: UUID;
-  number: string;
-  status: string;
-  capacity: number;
+  number?: string;
+  tableCode?: string;
+  status?: string;
+  capacity?: number;
 }
 
 export interface UserResponse {
@@ -116,6 +129,9 @@ export interface UserResponse {
   email: string;
   phone: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
   roleCode: string;
   status: UserStatus;
 }

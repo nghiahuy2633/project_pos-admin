@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
 import type {
-  AddOrderItemRequest,
   ChangePasswordRequest,
   CreateProductRequest,
   CreateUserRequest,

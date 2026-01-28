@@ -9,6 +9,7 @@ import ProductsPage from './pages/Products';
 import TablesPage from './pages/Tables';
 import UsersPage from './pages/Users';
 import ReportsPage from './pages/Reports';
+import POSPage from './pages/POS';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/pos" element={<POSPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/tables" element={<TablesPage />} />

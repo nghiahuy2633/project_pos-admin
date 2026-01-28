@@ -26,8 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Search, Plus, Edit2, Trash2, UtensilsCrossed, Loader2, ImagePlus, ImageOff, X } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, UtensilsCrossed, Loader2, ImagePlus, X } from 'lucide-react';
 import { productApi, categoryApi, uploadApi } from '@/api/apiClient';
 import type { ProductResponse, CategoryResponse } from '@/types/api';
 import { toast } from 'sonner';
@@ -79,7 +78,7 @@ export default function ProductsPage() {
         productApi.getProducts({ page: 0, size: 100 }),
         categoryApi.getCategories({ page: 0, size: 100 }),
       ]);
-      const rawProducts = (productsRes?.data?.items) ?? (productsRes?.items) ?? (productsRes?.content) ?? [];
+      const rawProducts = (productsRes as any)?.data?.items ?? (productsRes as any)?.items ?? (productsRes as any)?.content ?? [];
       const normalizedProducts = rawProducts.map((p: any) => ({
         id: p.id ?? p.productId,
         name: p.name ?? '',
@@ -88,7 +87,7 @@ export default function ProductsPage() {
         categoryId: p.categoryId ?? '',
       }));
       setProducts(normalizedProducts);
-      const rawCategories = (categoriesRes?.data?.items) ?? (categoriesRes?.items) ?? (categoriesRes?.content) ?? [];
+      const rawCategories = (categoriesRes as any)?.data?.items ?? (categoriesRes as any)?.items ?? (categoriesRes as any)?.content ?? [];
       const normalizedCategories = rawCategories.map((c: any) => ({ id: c.id ?? c.categoryId, name: c.name ?? '' }));
       setCategories(normalizedCategories);
     } catch (e) {
@@ -205,41 +204,7 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const [productsRes, categoriesRes] = await Promise.all([
-          productApi.getProducts({ size: 100 }), // Fetch more products for now
-          categoryApi.getCategories({ size: 100 })
-        ]);
-        
-        const rawProducts = (productsRes?.data?.items) ?? (productsRes?.items) ?? (productsRes?.content) ?? [];
-        const normalizedProducts = Array.isArray(rawProducts) ? rawProducts.map((p: any) => ({
-          id: p.id ?? p.productId ?? '',
-          name: p.name ?? '',
-          price: Number(p.price ?? 0),
-          imageUrl: typeof p.imageUrl === 'string' ? p.imageUrl.trim() : undefined,
-          categoryId: p.categoryId ?? ''
-        })) : [];
-        setProducts(normalizedProducts);
-
-        const rawCategories = (categoriesRes?.data?.items) ?? (categoriesRes?.items) ?? (categoriesRes?.content) ?? [];
-        const normalizedCategories = Array.isArray(rawCategories) ? rawCategories.map((c: any) => ({
-          id: c.id ?? c.categoryId ?? '',
-          name: c.name ?? ''
-        })) : [];
-        setCategories(normalizedCategories);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-        toast.error('Không thể tải dữ liệu món ăn');
-        setProducts([]); 
-        setCategories([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+    reloadProducts();
   }, []);
 
   const filteredProducts = (products ?? []).filter((product) => {

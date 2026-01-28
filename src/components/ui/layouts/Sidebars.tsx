@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Store,
   ShoppingCart,
   UtensilsCrossed,
   LayoutGrid,
@@ -20,6 +21,12 @@ const menuItems = [
     href: '/dashboard',
     icon: LayoutDashboard,
     description: 'Tổng quan hệ thống',
+  },
+  {
+    title: 'POS',
+    href: '/pos',
+    icon: Store,
+    description: 'Gọi món theo bàn',
   },
   {
     title: 'Đơn hàng',

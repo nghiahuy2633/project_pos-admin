@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/ui/layouts/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +21,6 @@ import {
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import {
   Dialog,
@@ -31,7 +29,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Search, Eye, MoreHorizontal, Filter, Loader2, Trash2, Plus, Save } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, Filter, Loader2, Trash2, Plus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { orderApi, tableApi, productApi } from '@/api/apiClient';
-import type { OrderResponse, OrderStatus, ProductResponse } from '@/types/api';
+import type { OrderResponse, ProductResponse } from '@/types/api';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   OPEN: {
@@ -77,9 +75,19 @@ export default function OrdersPage() {
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantityInput, setQuantityInput] = useState<string>('1');
   const [note, setNote] = useState('');
   const [isProductsLoading, setIsProductsLoading] = useState(false);
+
+  const quantity = parseInt(quantityInput) || 1;
+
+  const selectedOrderId = selectedOrder?.orderId as string | undefined;
+
+  const selectedOrderItemIdByIndex = useMemo(() => {
+    const items = selectedOrder?.items || [];
+    if (!Array.isArray(items)) return [] as string[];
+    return items.map((item: any) => item?.id || item?.orderItemId || '');
+  }, [selectedOrder?.items]);
 
   const fetchProducts = async () => {
     if (products.length > 0) return;
@@ -102,10 +110,10 @@ export default function OrdersPage() {
       await orderApi.addItemToOrder(selectedOrder.orderId, {
         productId: selectedProduct,
         quantity: quantity,
-        notes: note
+        notes: note,
       });
       setSelectedProduct('');
-      setQuantity(1);
+      setQuantityInput('1');
       setNote('');
       setIsAddingItem(false);
       handleViewDetail(selectedOrder.orderId);
@@ -114,11 +122,11 @@ export default function OrdersPage() {
     }
   };
 
-  const handleDeleteItem = async (orderItemId: string) => {
-    if (!selectedOrder?.orderId || !confirm('Bạn có chắc muốn xóa món này?')) return;
+  const handleDeleteItem = async (orderId: string, orderItemId: string) => {
+    if (!orderId || !orderItemId || !confirm('Bạn có chắc muốn hủy món này?')) return;
     try {
-      await orderApi.cancelOrderItem(selectedOrder.orderId, orderItemId);
-      handleViewDetail(selectedOrder.orderId);
+      await orderApi.cancelOrderItem(orderId, orderItemId);
+      await handleViewDetail(orderId);
     } catch (error) {
       console.error('Delete item failed:', error);
     }
@@ -162,7 +170,28 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrdersAndTables();
+    
+    // Polling every 15 seconds to keep data fresh
+    const interval = setInterval(fetchOrdersAndTables, 15000);
+    return () => clearInterval(interval);
   }, []);
+
+  const formatVNTime = (dateStr: string) => {
+    if (!dateStr) return '-';
+    try {
+      return new Date(dateStr).toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
   const handleViewDetail = async (orderId: string) => {
     try {
@@ -173,11 +202,20 @@ export default function OrdersPage() {
       // @ts-ignore
       const finalDetail = detail.data || detail;
       setSelectedOrder(finalDetail);
+      return finalDetail;
     } catch (error) {
       console.error('Failed to fetch order detail:', error);
+      return null;
     } finally {
       setIsDetailLoading(false);
     }
+  };
+
+  const handleOpenAddItemFromRow = async (orderId: string) => {
+    const detail = await handleViewDetail(orderId);
+    if (!detail) return;
+    setIsAddingItem(true);
+    fetchProducts();
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -342,13 +380,7 @@ export default function OrdersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-slate-500 text-xs font-medium">
-                      {order.createdAt ? new Date(order.createdAt).toLocaleString('vi-VN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : '-'}
+                      {formatVNTime(order.createdAt || '')}
                     </TableCell>
                     <TableCell className="pr-8 text-right">
                       <DropdownMenu>
@@ -365,6 +397,25 @@ export default function OrdersPage() {
                             <Eye className="mr-3 h-4 w-4 text-blue-500" />
                             Xem chi tiết
                           </DropdownMenuItem>
+
+                          {order.status === 'OPEN' && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => order.orderId && handleOpenAddItemFromRow(order.orderId)}
+                                className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+                              >
+                                <Plus className="mr-3 h-4 w-4 text-emerald-500" />
+                                Thêm món
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => order.orderId && handleViewDetail(order.orderId)}
+                                className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+                              >
+                                <Trash2 className="mr-3 h-4 w-4 text-rose-500" />
+                                Hủy món
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -417,7 +468,7 @@ export default function OrdersPage() {
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Thời gian tạo</p>
                     <p className="text-white font-bold">
-                      {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString('vi-VN') : '-'}
+                      {formatVNTime(selectedOrder.createdAt)}
                     </p>
                   </div>
                </div>
@@ -431,7 +482,8 @@ export default function OrdersPage() {
                            <TableHead className="pl-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Sản phẩm</TableHead>
                            <TableHead className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">SL</TableHead>
                            <TableHead className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Đơn giá</TableHead>
-                           <TableHead className="pr-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Thành tiền</TableHead>
+                           <TableHead className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Thành tiền</TableHead>
+                           <TableHead className="pr-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Thao tác</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -440,16 +492,32 @@ export default function OrdersPage() {
                              <TableRow key={index} className="border-slate-800/50 hover:bg-slate-800/20 transition-colors h-16">
                                <TableCell className="pl-6">
                                  <p className="font-bold text-white">{item.productName || 'Sản phẩm #' + (index + 1)}</p>
-                                 {item.notes && <p className="text-[10px] text-slate-500 font-medium mt-0.5 italic">{item.notes}</p>}
+                                 {(item.notes || item.note) && (
+                                   <p className="text-[10px] text-slate-500 font-medium mt-0.5 italic">{item.notes || item.note}</p>
+                                 )}
                                </TableCell>
                                <TableCell className="text-center font-bold text-slate-300">{item.quantity}</TableCell>
                                <TableCell className="text-right font-medium text-slate-400">{(item.unitPrice || item.price)?.toLocaleString('vi-VN')}</TableCell>
-                               <TableCell className="pr-6 text-right font-bold text-white">{(item.totalPrice || ((item.unitPrice || item.price) * item.quantity))?.toLocaleString('vi-VN')}</TableCell>
+                               <TableCell className="text-right font-bold text-white">{(item.totalPrice || ((item.unitPrice || item.price) * item.quantity))?.toLocaleString('vi-VN')}</TableCell>
+                               <TableCell className="pr-6 text-right">
+                                 {selectedOrder.status === 'OPEN' && (item.status || '').toUpperCase() !== 'CANCELLED' ? (
+                                   <Button
+                                     onClick={() => handleDeleteItem(selectedOrderId || '', selectedOrderItemIdByIndex[index])}
+                                     variant="ghost"
+                                     size="icon"
+                                     className="h-9 w-9 rounded-xl hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition-all"
+                                   >
+                                     <Trash2 className="h-4 w-4" />
+                                   </Button>
+                                 ) : (
+                                   <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">-</span>
+                                 )}
+                               </TableCell>
                              </TableRow>
                            ))
                          ) : (
                            <TableRow>
-                             <TableCell colSpan={4} className="text-center py-12">
+                             <TableCell colSpan={5} className="text-center py-12">
                                <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">Chưa có thông tin món ăn</p>
                              </TableCell>
                            </TableRow>
@@ -482,6 +550,79 @@ export default function OrdersPage() {
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Lỗi khi tải dữ liệu đơn hàng</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddingItem} onOpenChange={setIsAddingItem}>
+        <DialogContent className="bg-slate-900 border-slate-800 sm:max-w-[520px] rounded-[32px] p-8 gap-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-white">Thêm món vào đơn</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium">
+              Đơn: {selectedOrderId ? `#${selectedOrderId.substring(0, 5).toUpperCase()}` : '-'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Sản phẩm</p>
+              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                <SelectTrigger className="h-14 bg-slate-900/50 border-slate-800 rounded-2xl text-white font-bold focus:ring-2 focus:ring-blue-600/20">
+                  <SelectValue placeholder={isProductsLoading ? 'Đang tải sản phẩm...' : 'Chọn sản phẩm'} />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 rounded-xl max-h-[320px]">
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} {typeof p.price === 'number' ? `- ${p.price.toLocaleString('vi-VN')}đ` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Số lượng</p>
+                <Input
+                  type="number"
+                  min={1}
+                  value={quantityInput}
+                  onChange={(e) => setQuantityInput(e.target.value)}
+                  onBlur={() => {
+                    if (!quantityInput || parseInt(quantityInput) < 1) {
+                      setQuantityInput('1');
+                    }
+                  }}
+                  className="h-14 bg-slate-900/50 border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-600/20 transition-all font-bold"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ghi chú</p>
+                <Input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Ví dụ: ít đá, không hành..."
+                  className="h-14 bg-slate-900/50 border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setIsAddingItem(false)}
+                className="h-12 px-5 rounded-2xl bg-slate-900/50 border border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleAddItem}
+                disabled={!selectedProduct || !selectedOrderId}
+                className="h-12 px-6 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600"
+              >
+                <Plus className="mr-2 h-4 w-4" /> Lưu
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

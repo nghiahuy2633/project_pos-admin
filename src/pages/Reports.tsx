@@ -51,7 +51,7 @@ const monthlyData = [
   { name: 'T10', revenue: 189_000_000, orders: 2_600 },
   { name: 'T11', revenue: 195_000_000, orders: 2_700 },
   { name: 'T12', revenue: 220_000_000, orders: 3_000 },
-] as const;
+];
 
 const categoryData = [
   { name: 'Phở & Bún', value: 35, color: 'oklch(0.546 0.245 262.881)' },
@@ -59,7 +59,7 @@ const categoryData = [
   { name: 'Bánh', value: 15, color: 'oklch(0.769 0.188 70.08)' },
   { name: 'Đồ uống', value: 18, color: 'oklch(0.627 0.265 303.9)' },
   { name: 'Khai vị', value: 7, color: 'oklch(0.645 0.246 16.439)' },
-] as const;
+];
 
 const formatVND = (value: number) => {
   if (value >= 1_000_000) {
