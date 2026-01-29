@@ -30,7 +30,7 @@ import {
   Card,
   CardContent,
 } from '@/components/ui/card';
-import { Search, Plus, MoreHorizontal, UserCog, Ban, CheckCircle, Users, UserCheck, UserX, UserPlus, Loader2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, UserCog, Ban, CheckCircle, Users, UserCheck, UserX, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,6 +88,7 @@ export default function UsersPage() {
     roleCode: 'STAFF',
     status: 'ACTIVE',
   });
+  const [passwordVisibility, setPasswordVisibility] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -149,6 +150,7 @@ export default function UsersPage() {
         roleCode: 'STAFF',
         status: 'ACTIVE',
       });
+      setPasswordVisibility(false);
     }
     setIsDialogOpen(true);
   };
@@ -527,26 +529,36 @@ export default function UsersPage() {
                 </Select>
              </div>
              {!editingUser && (
-                 <>
+                <>
                     <div className="space-y-2">
                         <Label className="text-slate-400 text-sm font-medium">Mật khẩu</Label>
-                        <Input 
-                            value={form.password} 
-                            onChange={e => setForm({...form, password: e.target.value})} 
-                            type="password"
-                            className="bg-slate-800/50 border-slate-700 rounded-2xl h-12 text-white focus:ring-blue-500/20"
-                        />
+                        <div className="relative">
+                            <Input 
+                                value={form.password} 
+                                onChange={e => setForm({...form, password: e.target.value})} 
+                                type={passwordVisibility ? "text" : "password"}
+                                className="bg-slate-800/50 border-slate-700 rounded-2xl h-12 text-white focus:ring-blue-500/20 pr-12"
+                            />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn("absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-slate-400 hover:text-white")}
+                                onClick={() => setPasswordVisibility(!passwordVisibility)}
+                            >
+                                {passwordVisibility ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-slate-400 text-sm font-medium">Xác nhận mật khẩu</Label>
                         <Input 
                             value={form.confirmPassword} 
                             onChange={e => setForm({...form, confirmPassword: e.target.value})} 
-                            type="password"
+                            type={passwordVisibility ? "text" : "password"}
                             className="bg-slate-800/50 border-slate-700 rounded-2xl h-12 text-white focus:ring-blue-500/20"
                         />
                     </div>
-                 </>
+                </>
              )}
           </div>
           <DialogFooter className="gap-3 mt-4">

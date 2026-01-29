@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -60,9 +59,13 @@ const menuItems = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <aside
@@ -87,7 +90,7 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={onToggle}
             className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-white"
           >
             {collapsed ? (

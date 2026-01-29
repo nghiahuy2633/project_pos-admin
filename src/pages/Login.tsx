@@ -7,21 +7,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { authApi } from "@/api/apiClient"
+import { authApi, getApiErrorMessage } from "@/api/apiClient"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    email: "admin@restaurant.com",
-    password: "password123",
+    email: "",
+    password: "",
     remember: false,
   })
 
@@ -39,15 +36,20 @@ export default function LoginPage() {
       const token = res.data?.token || res.token || res.accessToken || res.access_token;
 
       if (token) {
-        localStorage.setItem("token", token)
+        localStorage.removeItem("token")
+        sessionStorage.removeItem("token")
+        if (formData.remember) {
+          localStorage.setItem("token", token)
+        } else {
+          sessionStorage.setItem("token", token)
+        }
         navigate("/dashboard")
       } else {
-        // Show error to user (if toast was available)
-        alert("Đăng nhập thành công nhưng không tìm thấy token!");
+        toast.error("Đăng nhập thành công nhưng phản hồi không hợp lệ (thiếu token)")
       }
     } catch (error) {
       console.error("Login failed", error)
-      // TODO: hiện toast/thông báo lỗi
+      toast.error(getApiErrorMessage(error, "Đăng nhập thất bại"))
     } finally {
       setIsLoading(false)
     }
@@ -61,24 +63,33 @@ export default function LoginPage() {
         <div className="absolute -bottom-[10%] -right-[10%] h-[50%] w-[50%] rounded-full bg-blue-900/10 blur-[120px]" />
       </div>
 
-      <Card className="relative w-full max-w-[440px] border-slate-800/50 bg-slate-900/40 backdrop-blur-xl shadow-2xl rounded-3xl overflow-hidden">
-        <CardHeader className="pt-12 pb-8 px-8 space-y-6 text-center">
-          {/* Logo */}
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] bg-blue-600 shadow-xl shadow-blue-600/20 ring-4 ring-blue-600/10 transition-transform hover:scale-105 duration-300">
-            <UtensilsCrossed className="h-10 w-10 text-white" />
-          </div>
-          <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight text-white">
-              POS Admin
-            </CardTitle>
-            <CardDescription className="text-slate-400 font-medium">
-              Đăng nhập vào hệ thống quản trị
-            </CardDescription>
-          </div>
-        </CardHeader>
+      <Card className="relative w-full max-w-[980px] border-slate-800/50 bg-slate-900/40 backdrop-blur-xl shadow-2xl rounded-3xl overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="relative p-10 md:p-12 bg-gradient-to-br from-blue-600/15 via-slate-900/10 to-slate-900/40 border-b md:border-b-0 md:border-r border-slate-800/50">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-xl shadow-blue-600/20 ring-4 ring-blue-600/10">
+                <UtensilsCrossed className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold tracking-tight text-white">POS Admin</div>
+                <div className="mt-1 text-sm font-medium text-slate-400">Đăng nhập vào hệ thống quản trị</div>
+              </div>
+            </div>
 
-        <CardContent className="px-10 pb-12">
-          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="mt-10 space-y-4">
+              <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5 text-sm text-slate-300">
+                <div className="font-bold text-white">Tối ưu cho vận hành</div>
+                <div className="mt-1 text-slate-400">Gọn gàng, nhanh, thao tác ít để phục vụ giờ cao điểm.</div>
+              </div>
+              <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5 text-sm text-slate-300">
+                <div className="font-bold text-white">Bảo mật phiên đăng nhập</div>
+                <div className="mt-1 text-slate-400">Có chế độ ghi nhớ hoặc chỉ lưu trong phiên làm việc.</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-10 md:p-12">
+            <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2.5">
               <Label htmlFor="email" className="text-sm font-semibold text-slate-300 ml-1">
                 Email
@@ -86,7 +97,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@restaurant.com"
+                placeholder="name@company.com"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -152,6 +163,7 @@ export default function LoginPage() {
                 type="button"
                 variant="link"
                 className="p-0 h-auto text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors"
+                onClick={() => toast.info("Chức năng quên mật khẩu chưa được hỗ trợ")}
               >
                 Quên mật khẩu?
               </Button>
@@ -172,16 +184,8 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          <div className="mt-10 pt-8 border-t border-slate-800/50 text-center">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Demo Account
-            </p>
-            <p className="mt-3 text-sm font-medium text-slate-400">
-              admin@restaurant.com / password123
-            </p>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

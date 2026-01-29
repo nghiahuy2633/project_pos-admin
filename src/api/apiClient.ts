@@ -30,7 +30,13 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request Interceptor: Attach JWT Token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('jwt');
+  const token =
+    localStorage.getItem('token') ||
+    sessionStorage.getItem('token') ||
+    localStorage.getItem('access_token') ||
+    sessionStorage.getItem('access_token') ||
+    localStorage.getItem('jwt') ||
+    sessionStorage.getItem('jwt');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -43,11 +49,36 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      sessionStorage.removeItem('access_token');
+      localStorage.removeItem('jwt');
+      sessionStorage.removeItem('jwt');
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
+
+export function getApiErrorMessage(error: unknown, fallback = 'Thao tác thất bại'): string {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const data: any = error.response?.data;
+    const serverMessage =
+      data?.message ||
+      data?.error ||
+      data?.detail ||
+      data?.title ||
+      (typeof data === 'string' ? data : undefined);
+
+    if (status === 401) return 'Email hoặc mật khẩu không đúng';
+    if (serverMessage && typeof serverMessage === 'string') return serverMessage;
+    if (error.message) return error.message;
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
 
 /**
  * API Groups

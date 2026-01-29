@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { orderApi, productApi, tableApi } from '@/api/apiClient';
+import { getApiErrorMessage, orderApi, productApi, tableApi } from '@/api/apiClient';
 import type { OrderResponse, ProductResponse, TableResponse } from '@/types/api';
 import { Loader2, Plus, Trash2, CheckCircle2, CreditCard, DoorOpen, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -74,6 +74,43 @@ export default function POSPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const quantity = parseInt(quantityInput) || 1;
+
+  const normalizePosErrorMessage = (rawMessage: string) => {
+    const msg = rawMessage.toLowerCase();
+    const isOutOfStock =
+      msg.includes('out of stock') ||
+      msg.includes('sold out') ||
+      msg.includes('hết kho') ||
+      msg.includes('het kho') ||
+      msg.includes('hết hàng') ||
+      msg.includes('het hang');
+    if (isOutOfStock) return 'Món đã hết kho';
+
+    const isInsufficientStock =
+      (msg.includes('not enough') && msg.includes('stock')) ||
+      msg.includes('insufficient') ||
+      msg.includes('không đủ') ||
+      msg.includes('khong du');
+    if (isInsufficientStock) return 'Không đủ số lượng trong kho';
+
+    return rawMessage;
+  };
+
+  const sortedTables = useMemo(() => {
+    return [...tables].sort((a: any, b: any) => {
+      const aLabel = (a?.tableCode || a?.number || a?.id || '').toString();
+      const bLabel = (b?.tableCode || b?.number || b?.id || '').toString();
+      return aLabel.localeCompare(bLabel, 'vi', { sensitivity: 'base', numeric: true });
+    });
+  }, [tables]);
+
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a: any, b: any) => {
+      const aName = (a?.name || '').toString();
+      const bName = (b?.name || '').toString();
+      return aName.localeCompare(bName, 'vi', { sensitivity: 'base', numeric: true });
+    });
+  }, [products]);
 
   const tableLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -207,7 +244,7 @@ export default function POSPage() {
       });
       const parsed = unwrapApiResult(res);
       if (!parsed.ok) {
-        toast.error(parsed.message);
+        toast.error(normalizePosErrorMessage(parsed.message || 'Thêm món thất bại'));
         return;
       }
       setSelectedProductId('');
@@ -216,7 +253,7 @@ export default function POSPage() {
       await fetchActiveOrder(selectedTableId);
       toast.success('Đã thêm món');
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || e?.message || 'Thêm món thất bại');
+      toast.error(normalizePosErrorMessage(getApiErrorMessage(e, 'Thêm món thất bại')));
     } finally {
       setIsSubmitting(false);
     }
@@ -245,7 +282,7 @@ export default function POSPage() {
   const handleConfirmOrder = async () => {
     if (!activeOrder?.orderId) return;
     if (items.length === 0) {
-      alert('Vui lòng thêm món trước khi xác nhận');
+      toast.error('Vui lòng thêm món trước khi xác nhận');
       return;
     }
     try {
@@ -305,7 +342,7 @@ export default function POSPage() {
                     <SelectValue placeholder={isTablesLoading ? 'Đang tải bàn...' : 'Chọn bàn'} />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-800 rounded-xl max-h-[360px]">
-                    {tables.map((t: any) => (
+                    {sortedTables.map((t: any) => (
                       <SelectItem key={t.id} value={t.id}>
                         {t.tableCode || (t.number ? `Bàn ${t.number}` : t.id)}
                       </SelectItem>
@@ -418,7 +455,7 @@ export default function POSPage() {
                             <CommandList className="max-h-[300px]">
                               <CommandEmpty className="py-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">Không tìm thấy món</CommandEmpty>
                               <CommandGroup>
-                                {products.map((p) => (
+                                {sortedProducts.map((p) => (
                                   <CommandItem
                                     key={p.id}
                                     value={p.name}

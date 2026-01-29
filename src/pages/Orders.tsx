@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '@/components/ui/layouts/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,6 +83,8 @@ export default function OrdersPage() {
 
   const selectedOrderId = selectedOrder?.orderId as string | undefined;
 
+  const didMountRef = useRef(false);
+
   const selectedOrderItemIdByIndex = useMemo(() => {
     const items = selectedOrder?.items || [];
     if (!Array.isArray(items)) return [] as string[];
@@ -95,8 +97,20 @@ export default function OrdersPage() {
       setIsProductsLoading(true);
       const res = await productApi.getProducts({ page: 0, size: 100 });
       // @ts-ignore
-      const items = res.data?.items || res.items || res.content || [];
-      setProducts(items);
+      const data = res.data || res;
+      const list = data.items || data.content || [];
+      const normalized = Array.isArray(list)
+        ? list
+            .map((p: any) => ({
+              id: p.id ?? p.productId,
+              name: p.name ?? p.productName ?? '',
+              price: typeof p.price === 'number' ? p.price : Number(p.price ?? 0),
+              imageUrl: typeof p.imageUrl === 'string' ? p.imageUrl.trim() : undefined,
+            }))
+            .filter((p: any) => !!p.id)
+            .sort((a: any, b: any) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base', numeric: true }))
+        : [];
+      setProducts(normalized as any);
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
@@ -170,11 +184,23 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrdersAndTables();
-    
-    // Polling every 15 seconds to keep data fresh
+  }, []);
+
+  useEffect(() => {
+    if (isDetailOpen || isAddingItem) return;
     const interval = setInterval(fetchOrdersAndTables, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isDetailOpen, isAddingItem]);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    if (!isDetailOpen && !isAddingItem) {
+      fetchOrdersAndTables();
+    }
+  }, [isDetailOpen, isAddingItem]);
 
   const formatVNTime = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -566,7 +592,7 @@ export default function OrdersPage() {
             <div className="space-y-2">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Sản phẩm</p>
               <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                <SelectTrigger className="h-14 bg-slate-900/50 border-slate-800 rounded-2xl text-white font-bold focus:ring-2 focus:ring-blue-600/20">
+                <SelectTrigger className="w-full h-14 bg-slate-900/50 border-slate-800 rounded-2xl text-white font-bold focus:ring-2 focus:ring-blue-600/20 justify-between overflow-hidden whitespace-nowrap">
                   <SelectValue placeholder={isProductsLoading ? 'Đang tải sản phẩm...' : 'Chọn sản phẩm'} />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 rounded-xl max-h-[320px]">
