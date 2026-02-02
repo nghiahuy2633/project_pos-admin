@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Search, Eye, MoreHorizontal, Filter, Loader2, Trash2, Plus } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, Filter, Loader2, Trash2, Plus, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,8 +37,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { orderApi, tableApi, productApi } from '@/api/apiClient';
+import { orderApi, tableApi, productApi, getApiErrorMessage } from '@/api/apiClient';
 import type { OrderResponse, ProductResponse } from '@/types/api';
+import { toast } from 'sonner';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   OPEN: {
@@ -146,6 +147,19 @@ export default function OrdersPage() {
     }
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    if (!orderId || !confirm('Bạn có chắc muốn hủy đơn hàng này?')) return;
+    try {
+      await orderApi.cancelOrder(orderId as any);
+      setIsDetailOpen(false);
+      setSelectedOrder(null);
+      fetchOrdersAndTables();
+    } catch (error) {
+      console.error('Cancel order failed:', error);
+      toast.error(getApiErrorMessage(error, 'Không thể hủy đơn'));
+    }
+  };
+
   const fetchOrdersAndTables = async () => {
     try {
       setIsLoading(true);
@@ -185,12 +199,6 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrdersAndTables();
   }, []);
-
-  useEffect(() => {
-    if (isDetailOpen || isAddingItem) return;
-    const interval = setInterval(fetchOrdersAndTables, 15000);
-    return () => clearInterval(interval);
-  }, [isDetailOpen, isAddingItem]);
 
   useEffect(() => {
     if (!didMountRef.current) {
@@ -310,7 +318,7 @@ export default function OrdersPage() {
           <div className="relative w-full lg:max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
             <Input
-              placeholder="Tìm theo mã đơn, khách hàng, bàn..."
+              placeholder="Tìm theo mã đơn, bàn..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-14 bg-slate-900/50 border-slate-800 rounded-2xl pl-12 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
@@ -350,7 +358,6 @@ export default function OrdersPage() {
               <TableRow className="border-slate-800/50 hover:bg-transparent h-16">
                 <TableHead className="pl-8 text-xs font-bold text-slate-500 uppercase tracking-widest">Mã đơn</TableHead>
                 <TableHead className="text-xs font-bold text-slate-500 uppercase tracking-widest">Bàn</TableHead>
-                <TableHead className="text-xs font-bold text-slate-500 uppercase tracking-widest">Khách hàng</TableHead>
                 <TableHead className="text-xs font-bold text-slate-500 uppercase tracking-widest">Món</TableHead>
                 <TableHead className="text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Tổng tiền</TableHead>
                 <TableHead className="text-xs font-bold text-slate-500 uppercase tracking-widest">Trạng thái</TableHead>
@@ -361,7 +368,7 @@ export default function OrdersPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-64 text-center">
+                  <TableCell colSpan={7} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center gap-4 text-slate-500">
                       <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
                       <p className="font-bold uppercase tracking-widest text-xs">Đang đồng bộ dữ liệu...</p>
@@ -370,7 +377,7 @@ export default function OrdersPage() {
                 </TableRow>
               ) : filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-64 text-center">
+                  <TableCell colSpan={7} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-slate-500">
                       <p className="font-bold uppercase tracking-widest text-xs">Không có dữ liệu phù hợp</p>
                     </div>
@@ -384,10 +391,6 @@ export default function OrdersPage() {
                     </TableCell>
                     <TableCell className="text-slate-300 font-medium">
                       {order.tableId ? (tablesMap[order.tableId] || 'Unknown') : 'Quầy'}
-                    </TableCell>
-                    <TableCell className="text-slate-300 font-medium">
-                      {/* Assuming no customer info in basic OrderResponse, placeholder for now */}
-                      Khách vãng lai
                     </TableCell>
                     <TableCell className="text-slate-400 font-medium">
                       {order.totalQuantity || 0} món
@@ -434,11 +437,11 @@ export default function OrdersPage() {
                                 Thêm món
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => order.orderId && handleViewDetail(order.orderId)}
+                                onClick={() => order.orderId && handleCancelOrder(order.orderId)}
                                 className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
                               >
-                                <Trash2 className="mr-3 h-4 w-4 text-rose-500" />
-                                Hủy món
+                                <XCircle className="mr-3 h-4 w-4 text-rose-500" />
+                                Hủy đơn
                               </DropdownMenuItem>
                             </>
                           )}
@@ -562,12 +565,21 @@ export default function OrdersPage() {
                  </div>
                  
                  {selectedOrder.status === 'OPEN' && (
-                   <Button 
-                    onClick={() => { setIsAddingItem(true); fetchProducts(); }}
-                    className="h-14 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20"
-                   >
-                     <Plus className="mr-3 h-5 w-5" /> Thêm món mới
-                   </Button>
+                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                     <Button
+                      onClick={() => { setIsAddingItem(true); fetchProducts(); }}
+                      className="h-14 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20"
+                     >
+                       <Plus className="mr-3 h-5 w-5" /> Thêm món mới
+                     </Button>
+                     <Button
+                      onClick={() => handleCancelOrder(selectedOrderId || '')}
+                      variant="destructive"
+                      className="h-14 px-8 rounded-2xl font-bold"
+                     >
+                       <XCircle className="mr-3 h-5 w-5" /> Hủy đơn
+                     </Button>
+                   </div>
                  )}
                </div>
             </div>

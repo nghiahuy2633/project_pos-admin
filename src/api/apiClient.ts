@@ -16,6 +16,8 @@ import type {
   UserResponse,
   CategoryResponse,
   TableResponse,
+  InventoryResponse,
+  StockRequest,
   UUID,
   OrderStatus,
   LocalDate
@@ -48,17 +50,21 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
-      localStorage.removeItem('access_token');
-      sessionStorage.removeItem('access_token');
-      localStorage.removeItem('jwt');
-      sessionStorage.removeItem('jwt');
+      clearAuthTokens();
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
+
+export function clearAuthTokens() {
+  localStorage.removeItem('token');
+  sessionStorage.removeItem('token');
+  localStorage.removeItem('access_token');
+  sessionStorage.removeItem('access_token');
+  localStorage.removeItem('jwt');
+  sessionStorage.removeItem('jwt');
+}
 
 export function getApiErrorMessage(error: unknown, fallback = 'Thao tác thất bại'): string {
   if (axios.isAxiosError(error)) {
@@ -72,6 +78,16 @@ export function getApiErrorMessage(error: unknown, fallback = 'Thao tác thất 
       (typeof data === 'string' ? data : undefined);
 
     if (status === 401) return 'Email hoặc mật khẩu không đúng';
+    if (status === 502 || status === 503 || status === 504) {
+      return 'Dịch vụ tạm thời không khả dụng, vui lòng thử lại sau';
+    }
+    if (!status && !error.response) {
+      return 'Không thể kết nối máy chủ, vui lòng kiểm tra mạng hoặc backend';
+    }
+
+    if (typeof serverMessage === 'string' && serverMessage.toLowerCase().includes('service unavailable')) {
+      return 'Dịch vụ tạm thời không khả dụng, vui lòng thử lại sau';
+    }
     if (serverMessage && typeof serverMessage === 'string') return serverMessage;
     if (error.message) return error.message;
   }
@@ -159,6 +175,9 @@ export const orderApi = {
     
   cancelOrderItem: (orderId: UUID, orderItemId: UUID): Promise<void> => 
     apiClient.delete(`/orders/${orderId}/items/${orderItemId}`),
+
+  cancelOrder: (orderId: UUID): Promise<void> =>
+    apiClient.post(`/orders/${orderId}/cancel`),
     
   payOrder: (orderId: UUID): Promise<void> => 
     apiClient.post(`/orders/${orderId}/pay`),
@@ -179,6 +198,18 @@ export const tableApi = {
 
   deleteTable: (id: UUID): Promise<void> => 
     apiClient.delete(`/tables/${id}`),
+};
+
+export const inventoryApi = {
+  // Assuming GET /inventories exists to list inventory items
+  getInventories: (params?: { page?: number; size?: number }): Promise<PageResponse<InventoryResponse>> => 
+    apiClient.get(`${import.meta.env.VITE_API_URL || ''}/api/v1/inventories`, { params, baseURL: '' }),
+
+  stockIn: (data: StockRequest): Promise<InventoryResponse> => 
+    apiClient.post(`${import.meta.env.VITE_API_URL || ''}/api/v1/inventories/stock-in`, data, { baseURL: '' }),
+
+  stockOut: (data: StockRequest): Promise<InventoryResponse> => 
+    apiClient.post(`${import.meta.env.VITE_API_URL || ''}/api/v1/inventories/stock-out`, data, { baseURL: '' }),
 };
 
 export const userApi = {

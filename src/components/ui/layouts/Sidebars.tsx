@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Store,
@@ -10,52 +10,67 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { clearAuthTokens } from '@/api/apiClient';
+import { toast } from 'sonner';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 
-const menuItems = [
+const menuItems: Array<{
+  titleKey: I18nKey;
+  descriptionKey: I18nKey;
+  href: string;
+  icon: any;
+}> = [
   {
-    title: 'Dashboard',
+    titleKey: 'sidebar.dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
-    description: 'Tổng quan hệ thống',
+    descriptionKey: 'sidebar.desc.dashboard',
   },
   {
-    title: 'POS',
+    titleKey: 'sidebar.pos',
     href: '/pos',
     icon: Store,
-    description: 'Gọi món theo bàn',
+    descriptionKey: 'sidebar.desc.pos',
   },
   {
-    title: 'Đơn hàng',
+    titleKey: 'sidebar.orders',
     href: '/orders',
     icon: ShoppingCart,
-    description: 'Quản lý đơn hàng',
+    descriptionKey: 'sidebar.desc.orders',
   },
   {
-    title: 'Thực đơn',
+    titleKey: 'sidebar.products',
     href: '/products',
     icon: UtensilsCrossed,
-    description: 'Món ăn & Danh mục',
+    descriptionKey: 'sidebar.desc.products',
   },
   {
-    title: 'Sơ đồ bàn',
+    titleKey: 'sidebar.inventory',
+    href: '/inventory',
+    icon: Package,
+    descriptionKey: 'sidebar.desc.inventory',
+  },
+  {
+    titleKey: 'sidebar.tables',
     href: '/tables',
     icon: LayoutGrid,
-    description: 'Quản lý bàn',
+    descriptionKey: 'sidebar.desc.tables',
   },
   {
-    title: 'Nhân sự',
+    titleKey: 'sidebar.users',
     href: '/users',
     icon: Users,
-    description: 'Quản lý nhân viên',
+    descriptionKey: 'sidebar.desc.users',
   },
   {
-    title: 'Báo cáo',
+    titleKey: 'sidebar.reports',
     href: '/reports',
     icon: BarChart3,
-    description: 'Thống kê & Phân tích',
+    descriptionKey: 'sidebar.desc.reports',
   },
 ];
 
@@ -66,6 +81,14 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+
+  const handleLogout = () => {
+    clearAuthTokens();
+    toast.success(t('toast.logged_out'));
+    navigate('/login');
+  };
 
   return (
     <aside
@@ -118,7 +141,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                         : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100',
                     )}
-                    title={collapsed ? item.title : undefined}
+                    title={collapsed ? t(item.titleKey) : undefined}
                   >
                     <item.icon className={cn(
                       "h-6 w-6 shrink-0 transition-colors",
@@ -126,12 +149,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     )} />
                     {!collapsed && (
                       <div className="flex flex-col">
-                        <span className="leading-none">{item.title}</span>
+                        <span className="leading-none">{t(item.titleKey)}</span>
                         <span className={cn(
                           "mt-1 text-[11px] font-normal opacity-60",
                           isActive ? "text-blue-100" : "text-slate-500"
                         )}>
-                          {item.description}
+                          {t(item.descriptionKey)}
                         </span>
                       </div>
                     )}
@@ -144,16 +167,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {/* Logout */}
         <div className="p-4 border-t border-slate-800/50">
-          <Link
-            to="/login"
+          <button
+            type="button"
+            onClick={handleLogout}
             className={cn(
-              'flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/50 hover:text-white group',
+              'flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-medium text-slate-400 transition-all hover:bg-slate-800/50 hover:text-white group',
             )}
-            title={collapsed ? 'Đăng xuất' : undefined}
+            title={collapsed ? t('account.logout') : undefined}
           >
             <LogOut className="h-6 w-6 shrink-0 text-slate-400 group-hover:text-white" />
-            {!collapsed && <span>Đăng xuất</span>}
-          </Link>
+            {!collapsed && <span>{t('account.logout')}</span>}
+          </button>
         </div>
       </div>
     </aside>

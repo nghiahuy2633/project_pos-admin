@@ -140,3 +140,15 @@ export interface LoginResponse {
   token: string;
   user: UserResponse;
 }
+
+export interface StockRequest {
+  productId: UUID;
+  quantity: number;
+}
+
+export interface InventoryResponse {
+  id: UUID;
+  productId: UUID;
+  totalQuantity: number;
+  availableQuantity: number;
+}

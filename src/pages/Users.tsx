@@ -104,7 +104,7 @@ export default function UsersPage() {
         username: u.username ?? '',
         email: u.email ?? '',
         phone: u.phone ?? '',
-        roleCode: u.roleCode ?? 'STAFF',
+        roleCode: String(u.roleCode ?? u.role ?? 'STAFF').toUpperCase(),
         status: (u.status ?? 'ACTIVE').toUpperCase(),
       })) : [];
 

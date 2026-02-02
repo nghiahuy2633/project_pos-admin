@@ -11,9 +11,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { authApi, getApiErrorMessage } from "@/api/apiClient"
 import { toast } from "sonner"
+import { useI18n } from "@/lib/i18n"
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -78,12 +80,12 @@ export default function LoginPage() {
 
             <div className="mt-10 space-y-4">
               <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5 text-sm text-slate-300">
-                <div className="font-bold text-white">Tối ưu cho vận hành</div>
-                <div className="mt-1 text-slate-400">Gọn gàng, nhanh, thao tác ít để phục vụ giờ cao điểm.</div>
+                <div className="font-bold text-white">Quản lý doanh thu</div>
+                <div className="mt-1 text-slate-400">Báo cáo chi tiết theo thời gian thực, nắm bắt tình hình kinh doanh mọi lúc.</div>
               </div>
               <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5 text-sm text-slate-300">
-                <div className="font-bold text-white">Bảo mật phiên đăng nhập</div>
-                <div className="mt-1 text-slate-400">Có chế độ ghi nhớ hoặc chỉ lưu trong phiên làm việc.</div>
+                <div className="font-bold text-white">Tối ưu quy trình</div>
+                <div className="mt-1 text-slate-400">Đồng bộ từ gọi món đến nhà bếp, giảm thiểu sai sót và tăng tốc độ phục vụ.</div>
               </div>
             </div>
           </div>
@@ -163,7 +165,7 @@ export default function LoginPage() {
                 type="button"
                 variant="link"
                 className="p-0 h-auto text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors"
-                onClick={() => toast.info("Chức năng quên mật khẩu chưa được hỗ trợ")}
+                onClick={() => toast.info(t('login.forgot_password_unavailable'))}
               >
                 Quên mật khẩu?
               </Button>

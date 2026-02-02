@@ -208,10 +208,6 @@ export default function POSPage() {
   useEffect(() => {
     if (!selectedTableId) return;
     fetchActiveOrder(selectedTableId);
-
-    // Poll active order status every 10 seconds
-    const interval = setInterval(() => fetchActiveOrder(selectedTableId), 10000);
-    return () => clearInterval(interval);
   }, [selectedTableId]);
 
   const handleOpenTable = async () => {
