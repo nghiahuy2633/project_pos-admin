@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/ui/layouts/Sidebars';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,14 @@ const UI_EVENT = 'pos-admin:ui';
 
 export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
+  const location = useLocation();
+
+  // Check for token
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   useEffect(() => {
     const sync = () => setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
