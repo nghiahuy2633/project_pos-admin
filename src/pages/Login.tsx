@@ -80,12 +80,12 @@ export default function LoginPage() {
 
             <div className="mt-10 space-y-4">
               <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5 text-sm text-slate-300">
-                <div className="font-bold text-white">Quản lý doanh thu</div>
-                <div className="mt-1 text-slate-400">Báo cáo chi tiết theo thời gian thực, nắm bắt tình hình kinh doanh mọi lúc.</div>
+                <div className="font-bold text-white">Quản trị dữ liệu tập trung</div>
+                <div className="mt-1 text-slate-400">Kiểm soát và đồng bộ mọi danh mục hệ thống trên một nền tảng duy nhất.</div>
               </div>
               <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5 text-sm text-slate-300">
-                <div className="font-bold text-white">Tối ưu quy trình</div>
-                <div className="mt-1 text-slate-400">Đồng bộ từ gọi món đến nhà bếp, giảm thiểu sai sót và tăng tốc độ phục vụ.</div>
+                <div className="font-bold text-white">Giao diện tương tác hiện đại</div>
+                <div className="mt-1 text-slate-400">Thiết kế tinh gọn, giúp thao tác tác vụ nhanh chóng và chính xác.</div>
               </div>
             </div>
           </div>

@@ -270,6 +270,7 @@ export default function OrdersPage() {
   const statusCounts = {
     all: orders.length,
     OPEN: orders.filter((o) => o.status === 'OPEN').length,
+    CONFIRMED: orders.filter((o) => o.status === 'CONFIRMED').length,
     PAID: orders.filter((o) => o.status === 'PAID').length,
     CANCELLED: orders.filter((o) => o.status === 'CANCELLED').length,
   };
@@ -293,8 +294,8 @@ export default function OrdersPage() {
           
           <Card className="bg-[#1e293b]/50 border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm">
             <CardContent className="p-8">
-              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Đang xử lý</p>
-              <h3 className="text-5xl font-black text-amber-500">{statusCounts.OPEN}</h3>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Chờ thanh toán</p>
+              <h3 className="text-5xl font-black text-blue-500">{statusCounts.CONFIRMED}</h3>
             </CardContent>
           </Card>
           
@@ -334,7 +335,8 @@ export default function OrdersPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 rounded-xl">
                   <SelectItem value="all">Tất cả ({statusCounts.all})</SelectItem>
-                  <SelectItem value="OPEN">Đang xử lý ({statusCounts.OPEN})</SelectItem>
+                  <SelectItem value="OPEN">Đang gọi món ({statusCounts.OPEN})</SelectItem>
+                  <SelectItem value="CONFIRMED">Chờ thanh toán ({statusCounts.CONFIRMED})</SelectItem>
                   <SelectItem value="PAID">Đã thanh toán ({statusCounts.PAID})</SelectItem>
                   <SelectItem value="CANCELLED">Đã hủy ({statusCounts.CANCELLED})</SelectItem>
                 </SelectContent>
