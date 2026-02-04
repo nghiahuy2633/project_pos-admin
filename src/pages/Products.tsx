@@ -30,6 +30,7 @@ import { Search, Plus, Edit2, Trash2, UtensilsCrossed, Loader2, ImagePlus, X } f
 import { productApi, categoryApi, uploadApi } from '@/api/apiClient';
 import type { ProductResponse, CategoryResponse } from '@/types/api';
 import { toast } from 'sonner';
+import { API_CONFIG, UI_MESSAGES } from '@/constants/app';
 
 const statusConfig = {
   available: {
@@ -75,8 +76,8 @@ export default function ProductsPage() {
     try {
       setIsLoading(true);
       const [productsRes, categoriesRes] = await Promise.all([
-        productApi.getProducts({ page: 0, size: 100 }),
-        categoryApi.getCategories({ page: 0, size: 100 }),
+        productApi.getProducts({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE }),
+        categoryApi.getCategories({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE }),
       ]);
       const rawProducts = (productsRes as any)?.data?.items ?? (productsRes as any)?.items ?? (productsRes as any)?.content ?? [];
       const normalizedProducts = rawProducts.map((p: any) => ({
@@ -92,7 +93,7 @@ export default function ProductsPage() {
       setCategories(normalizedCategories);
     } catch (e) {
       console.error('Reload failed', e);
-      toast.error('Không thể tải danh sách');
+      toast.error(UI_MESSAGES.ERROR.LOAD_FAILED);
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +103,7 @@ export default function ProductsPage() {
     try {
       setIsSubmitting(true);
       if (!form.name || !form.categoryId) {
-        toast.error('Vui lòng nhập tên món và chọn danh mục');
+        toast.error(UI_MESSAGES.ERROR.MISSING_INPUT);
         return;
       }
       
@@ -111,16 +112,16 @@ export default function ProductsPage() {
       if (editingProduct) {
         const updatedProduct = await productApi.updateProduct(editingProduct.id, { name: form.name, categoryId: form.categoryId, price: priceValue });
         setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...updatedProduct } : p)));
-        toast.success('Cập nhật món ăn thành công');
+        toast.success(UI_MESSAGES.SUCCESS.UPDATE);
       } else {
         await productApi.createProduct({ name: form.name, categoryId: form.categoryId, price: priceValue });
-        toast.success('Tạo món ăn thành công');
+        toast.success(UI_MESSAGES.SUCCESS.CREATE);
         await reloadProducts(); // Create vẫn cần reload vì API trả về void
       }
       setIsDialogOpen(false);
     } catch (e) {
       console.error('Save failed', e);
-      toast.error('Thao tác thất bại');
+      toast.error(UI_MESSAGES.ERROR.ACTION_FAILED);
     } finally {
       setIsSubmitting(false);
     }
@@ -130,10 +131,10 @@ export default function ProductsPage() {
     try {
       await productApi.deleteProduct(product.id);
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
-      toast.success('Xóa món ăn thành công');
+      toast.success(UI_MESSAGES.SUCCESS.DELETE);
     } catch (e) {
       console.error('Delete failed', e);
-      toast.error('Xóa món ăn thất bại');
+      toast.error(UI_MESSAGES.ERROR.DELETE_FAILED);
     }
   };
 
@@ -168,10 +169,10 @@ export default function ProductsPage() {
       const finalUrl = typeof (updated as any)?.imageUrl === 'string' ? (updated as any).imageUrl.trim() : cleanUrl;
       const bustUrl = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
       setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, imageUrl: bustUrl } : p)));
-      toast.success('Đính ảnh thành công');
+      toast.success(UI_MESSAGES.SUCCESS.ACTION);
     } catch (e) {
       console.error('Upload failed', e);
-      toast.error('Tải ảnh thất bại');
+      toast.error(UI_MESSAGES.ERROR.ACTION_FAILED);
     } finally {
       setIsUploading(false);
       setProductToUpload(null);
@@ -196,10 +197,10 @@ export default function ProductsPage() {
     try {
       await productApi.removeImage(product.id);
       setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, imageUrl: undefined } : p)));
-      toast.success('Xóa ảnh thành công');
+      toast.success(UI_MESSAGES.SUCCESS.ACTION);
     } catch (e) {
       console.error('Remove image failed', e);
-      toast.error('Xóa ảnh thất bại');
+      toast.error(UI_MESSAGES.ERROR.ACTION_FAILED);
     }
   };
 

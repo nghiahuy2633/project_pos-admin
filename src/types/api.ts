@@ -110,6 +110,7 @@ export interface CategoryResponse {
 
 export interface ProductResponse {
   id: UUID;
+  productId?: UUID;
   name: string;
   price: number;
   imageUrl?: string;

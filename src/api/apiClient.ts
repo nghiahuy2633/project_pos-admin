@@ -203,13 +203,13 @@ export const tableApi = {
 export const inventoryApi = {
   // Assuming GET /inventories exists to list inventory items
   getInventories: (params?: { page?: number; size?: number }): Promise<PageResponse<InventoryResponse>> => 
-    apiClient.get(`${import.meta.env.VITE_API_URL || ''}/api/v1/inventories`, { params, baseURL: '' }),
+    apiClient.get('/inventories', { params }),
 
   stockIn: (data: StockRequest): Promise<InventoryResponse> => 
-    apiClient.post(`${import.meta.env.VITE_API_URL || ''}/api/v1/inventories/stock-in`, data, { baseURL: '' }),
+    apiClient.post('/inventories/stock-in', data),
 
   stockOut: (data: StockRequest): Promise<InventoryResponse> => 
-    apiClient.post(`${import.meta.env.VITE_API_URL || ''}/api/v1/inventories/stock-out`, data, { baseURL: '' }),
+    apiClient.post('/inventories/stock-out', data),
 };
 
 export const userApi = {

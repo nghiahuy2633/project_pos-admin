@@ -53,7 +53,7 @@ export default function TablesPage() {
     try {
       setIsLoading(true);
       const res: any = await tableApi.getTables({ page: 0, size: 100 });
-      const rawTables = res?.data?.items ?? res?.items ?? res?.content ?? [];
+      const rawTables = res?.data ?? res?.items ?? res?.content ?? [];
       const normalizedTables = Array.isArray(rawTables) ? rawTables.map((t: any) => ({
         id: t.id ?? t.tableId,
         tableCode: t.tableCode ?? t.number ?? t.name ?? `Bàn ${t.id}`,

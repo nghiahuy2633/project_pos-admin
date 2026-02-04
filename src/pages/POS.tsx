@@ -37,6 +37,7 @@ import { getApiErrorMessage, orderApi, productApi, tableApi } from '@/api/apiCli
 import type { OrderResponse, ProductResponse, TableResponse } from '@/types/api';
 import { Loader2, Plus, Trash2, CheckCircle2, CreditCard, DoorOpen, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { API_CONFIG } from '@/constants/app';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   OPEN: {
@@ -57,6 +58,21 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   },
 };
 
+const tableStatusConfig: Record<string, { label: string; color: string }> = {
+  AVAILABLE: {
+    label: 'Trống',
+    color: 'text-emerald-500',
+  },
+  OCCUPIED: {
+    label: 'Có khách',
+    color: 'text-blue-500',
+  },
+  RESERVED: {
+    label: 'Đặt trước',
+    color: 'text-amber-500',
+  },
+};
+
 export default function POSPage() {
   const [tables, setTables] = useState<TableResponse[]>([]);
   const [products, setProducts] = useState<ProductResponse[]>([]);
@@ -72,6 +88,7 @@ export default function POSPage() {
   const [quantityInput, setQuantityInput] = useState<string>('1');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tableFilter, setTableFilter] = useState<'all' | 'available' | 'occupied'>('all');
 
   const quantity = parseInt(quantityInput) || 1;
 
@@ -97,12 +114,19 @@ export default function POSPage() {
   };
 
   const sortedTables = useMemo(() => {
-    return [...tables].sort((a: any, b: any) => {
+    let list = [...tables];
+    if (tableFilter === 'available') {
+      list = list.filter(t => t.status === 'AVAILABLE');
+    } else if (tableFilter === 'occupied') {
+      list = list.filter(t => t.status !== 'AVAILABLE');
+    }
+    
+    return list.sort((a: any, b: any) => {
       const aLabel = (a?.tableCode || a?.number || a?.id || '').toString();
       const bLabel = (b?.tableCode || b?.number || b?.id || '').toString();
       return aLabel.localeCompare(bLabel, 'vi', { sensitivity: 'base', numeric: true });
     });
-  }, [tables]);
+  }, [tables, tableFilter]);
 
   const sortedProducts = useMemo(() => {
     return [...products].sort((a: any, b: any) => {
@@ -124,14 +148,23 @@ export default function POSPage() {
   const fetchTables = async () => {
     try {
       setIsTablesLoading(true);
-      const res = await tableApi.getTables({ page: 0, size: 1000 });
+      const res = await tableApi.getTables({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE });
       // @ts-ignore
-      const data = res.data || res;
-      const list = data.items || data.content || [];
+      let list = [];
+      const data = (res as any)?.data || res;
+      
+      if (Array.isArray(data)) {
+        list = data;
+      } else {
+        list = data?.items ?? data?.content ?? [];
+      }
+
+      console.log('POS Tables Data:', list);
+
       const normalizedTables = Array.isArray(list)
         ? list.map((t: any) => ({
             id: t.id ?? t.tableId,
-            tableCode: t.tableCode ?? t.number ?? t.name,
+            tableCode: t.tableCode ?? t.number ?? t.name ?? `Bàn ${t.id}`,
             number: t.number,
             status: (t.status ?? 'AVAILABLE').toUpperCase(),
             capacity: typeof t.capacity === 'number' ? t.capacity : Number(t.capacity ?? 0),
@@ -150,7 +183,7 @@ export default function POSPage() {
   const fetchProducts = async () => {
     try {
       setIsProductsLoading(true);
-      const res = await productApi.getProducts({ page: 0, size: 200 });
+      const res = await productApi.getProducts({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE });
       // @ts-ignore
       const data = res.data || res;
       const list = data.items || data.content || [];
@@ -332,17 +365,65 @@ export default function POSPage() {
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Bàn</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Bàn</p>
+                  <div className="flex gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-800/50">
+                     <button
+                       onClick={() => setTableFilter('all')}
+                       className={cn(
+                         "px-2 py-1 rounded text-[10px] font-bold uppercase transition-all",
+                         tableFilter === 'all' ? "bg-slate-700 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"
+                       )}
+                     >
+                       Tất cả
+                     </button>
+                     <button
+                       onClick={() => setTableFilter('available')}
+                       className={cn(
+                         "px-2 py-1 rounded text-[10px] font-bold uppercase transition-all",
+                         tableFilter === 'available' ? "bg-emerald-500/20 text-emerald-500 shadow-sm border border-emerald-500/20" : "text-slate-500 hover:text-emerald-500"
+                       )}
+                     >
+                       Trống
+                     </button>
+                     <button
+                       onClick={() => setTableFilter('occupied')}
+                       className={cn(
+                         "px-2 py-1 rounded text-[10px] font-bold uppercase transition-all",
+                         tableFilter === 'occupied' ? "bg-blue-500/20 text-blue-500 shadow-sm border border-blue-500/20" : "text-slate-500 hover:text-blue-500"
+                       )}
+                     >
+                       Có khách
+                     </button>
+                  </div>
+                </div>
                 <Select value={selectedTableId} onValueChange={setSelectedTableId}>
                   <SelectTrigger className="h-14 bg-slate-900/50 border-slate-800 rounded-2xl text-white font-bold focus:ring-2 focus:ring-blue-600/20">
                     <SelectValue placeholder={isTablesLoading ? 'Đang tải bàn...' : 'Chọn bàn'} />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-800 rounded-xl max-h-[360px]">
-                    {sortedTables.map((t: any) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.tableCode || (t.number ? `Bàn ${t.number}` : t.id)}
-                      </SelectItem>
-                    ))}
+                    {sortedTables.length === 0 ? (
+                      <div className="p-4 text-center text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        Không có bàn phù hợp
+                      </div>
+                    ) : (
+                      sortedTables.map((t: any) => {
+                        const statusInfo = tableStatusConfig[t.status] || { label: t.status, color: 'text-slate-500' };
+                        return (
+                          <SelectItem key={t.id} value={t.id}>
+                            <span className="flex items-center justify-between w-full gap-4">
+                              <span>{t.tableCode}</span>
+                              <span className={cn(
+                                "text-[10px] font-black uppercase tracking-widest",
+                                statusInfo.color
+                              )}>
+                                {statusInfo.label}
+                              </span>
+                            </span>
+                          </SelectItem>
+                        );
+                      })
+                    )}
                   </SelectContent>
                 </Select>
               </div>

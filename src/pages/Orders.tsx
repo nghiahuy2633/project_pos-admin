@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Search, Eye, MoreHorizontal, Filter, Loader2, Trash2, Plus, XCircle } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, Filter, Loader2, Trash2, Plus, XCircle, CheckCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +40,7 @@ import { cn } from '@/lib/utils';
 import { orderApi, tableApi, productApi, getApiErrorMessage } from '@/api/apiClient';
 import type { OrderResponse, ProductResponse } from '@/types/api';
 import { toast } from 'sonner';
+import { API_CONFIG, UI_MESSAGES } from '@/constants/app';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   OPEN: {
@@ -96,7 +97,7 @@ export default function OrdersPage() {
     if (products.length > 0) return;
     try {
       setIsProductsLoading(true);
-      const res = await productApi.getProducts({ page: 0, size: 100 });
+      const res = await productApi.getProducts({ page: 0, size: API_CONFIG.PAGINATION.DROPDOWN_SIZE });
       // @ts-ignore
       const data = res.data || res;
       const list = data.items || data.content || [];
@@ -160,23 +161,43 @@ export default function OrdersPage() {
     }
   };
 
+  const handleConfirmOrder = async (orderId: string) => {
+    if (!orderId || !confirm('Bạn có chắc muốn xác nhận đơn hàng này?')) return;
+    try {
+      await orderApi.confirmOrder(orderId as any);
+      toast.success(UI_MESSAGES.SUCCESS.ACTION);
+      handleViewDetail(orderId);
+    } catch (error) {
+      console.error('Confirm order failed:', error);
+      toast.error(getApiErrorMessage(error, UI_MESSAGES.ERROR.ACTION_FAILED));
+    }
+  };
+
   const fetchOrdersAndTables = async () => {
     try {
       setIsLoading(true);
       const [ordersRes, tablesRes] = await Promise.all([
-        orderApi.getOrders({ page: 0, size: 100 }),
-        tableApi.getTables({ page: 0, size: 1000 }),
+        orderApi.getOrders({ page: 0, size: API_CONFIG.PAGINATION.DROPDOWN_SIZE }),
+        tableApi.getTables({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE }),
       ]);
 
       const tMap: Record<string, string> = {};
       // @ts-ignore
       const tableData = tablesRes.data || tablesRes;
-      const tableList = tableData.items || tableData.content || [];
+      
+      let tableList = [];
+      if (Array.isArray(tableData)) {
+        tableList = tableData;
+      } else {
+        tableList = tableData?.items ?? tableData?.content ?? [];
+      }
       
       if (Array.isArray(tableList)) {
         tableList.forEach((t: any) => {
-          if (t.id && (t.tableCode || t.number)) {
-            tMap[t.id] = t.tableCode || `Bàn ${t.number}`;
+          const tId = t.id ?? t.tableId;
+          const tName = t.tableCode ?? t.number ?? t.name ?? `Bàn ${tId}`;
+          if (tId) {
+            tMap[tId] = tName;
           }
         });
       }
@@ -252,11 +273,13 @@ export default function OrdersPage() {
     fetchProducts();
   };
 
+
+  
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       statusFilter === 'all' || order.status === statusFilter;
     
-    const tableName = order.tableId ? (tablesMap[order.tableId] || 'Không xác định') : 'Tại quầy';
+    const tableName = order.tableId ? (tablesMap[order.tableId] || UI_MESSAGES.UNKNOWN_TABLE) : UI_MESSAGES.AT_COUNTER;
     const orderId = order.orderId || '';
     const displayId = orderId.length >= 5 ? `ORD-${orderId.substring(0, 5).toUpperCase()}` : `ORD-${orderId}`;
     
@@ -266,6 +289,7 @@ export default function OrdersPage() {
       
     return matchesStatus && matchesSearch;
   });
+  
 
   const statusCounts = {
     all: orders.length,
@@ -392,7 +416,7 @@ export default function OrdersPage() {
                       ORD-{order.orderId?.substring(0, 5).toUpperCase()}
                     </TableCell>
                     <TableCell className="text-slate-300 font-medium">
-                      {order.tableId ? (tablesMap[order.tableId] || 'Unknown') : 'Quầy'}
+                      {order.tableId ? (tablesMap[order.tableId] || UI_MESSAGES.UNKNOWN_TABLE) : 'Quầy'}
                     </TableCell>
                     <TableCell className="text-slate-400 font-medium">
                       {order.totalQuantity || 0} món
@@ -567,19 +591,25 @@ export default function OrdersPage() {
                  </div>
                  
                  {selectedOrder.status === 'OPEN' && (
-                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                   <div className="flex flex-wrap items-center gap-2 justify-end w-full sm:w-auto">
                      <Button
                       onClick={() => { setIsAddingItem(true); fetchProducts(); }}
-                      className="h-14 px-8 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20"
+                      className="h-12 px-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 text-sm"
                      >
-                       <Plus className="mr-3 h-5 w-5" /> Thêm món mới
+                       <Plus className="mr-2 h-4 w-4" /> Thêm món
+                     </Button>
+                     <Button
+                      onClick={() => handleConfirmOrder(selectedOrderId || '')}
+                      className="h-12 px-4 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-sm"
+                     >
+                       <CheckCircle className="mr-2 h-4 w-4" /> Xác nhận
                      </Button>
                      <Button
                       onClick={() => handleCancelOrder(selectedOrderId || '')}
                       variant="destructive"
-                      className="h-14 px-8 rounded-2xl font-bold"
+                      className="h-12 px-4 rounded-xl font-bold text-sm"
                      >
-                       <XCircle className="mr-3 h-5 w-5" /> Hủy đơn
+                       <XCircle className="mr-2 h-4 w-4" /> Hủy
                      </Button>
                    </div>
                  )}

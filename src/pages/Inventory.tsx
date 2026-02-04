@@ -55,6 +55,7 @@ import type { InventoryResponse, ProductResponse } from '@/types/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { API_CONFIG } from '@/constants/app';
 import {
   Select,
   SelectContent,
@@ -83,18 +84,21 @@ export default function InventoryPage() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const prodRes = await productApi.getProducts({ page: 0, size: 100 });
+      const prodRes = await productApi.getProducts({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE });
       const rawProducts = (prodRes as any)?.data?.items ?? (prodRes as any)?.items ?? (prodRes as any)?.content ?? [];
-      setProducts(rawProducts);
+      setProducts(Array.isArray(rawProducts) ? rawProducts : []);
+
+      // Load Inventories
       try {
-        const invRes = await inventoryApi.getInventories({ page: 0, size: 500 });
+        const invRes = await inventoryApi.getInventories({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE });
         const rawInventories =
-          (invRes as any)?.data?.items ??
+          (invRes as any)?.data ??
           (invRes as any)?.items ??
           (invRes as any)?.content ??
           [];
         setInventories(Array.isArray(rawInventories) ? rawInventories : []);
       } catch (e: any) {
+        console.error('Inventory load error:', e);
         const status = e?.response?.status;
         if (status && status !== 404) {
           toast.error('Không thể tải dữ liệu tồn kho (đang hiển thị --)');
@@ -102,8 +106,8 @@ export default function InventoryPage() {
         setInventories([]);
       }
     } catch (e) {
-      console.error('Failed to load inventory data', e);
-      toast.error('Không thể tải dữ liệu kho');
+      console.error('Failed to load data', e);
+      toast.error('Không thể tải dữ liệu');
     } finally {
       setIsLoading(false);
     }
@@ -154,40 +158,42 @@ export default function InventoryPage() {
     }
   };
 
-  type InventoryItem = ProductResponse & {
-    totalQuantity?: number;
-    availableQuantity?: number;
+  type InventoryItem = InventoryResponse & {
+    productName: string;
+    productPrice?: number;
+    hasProductInfo: boolean;
   };
 
   const lowStockThreshold = 5;
 
-  const inventoryByProductId = useMemo(() => {
-    return new Map(inventories.map((i) => [i.productId, i]));
-  }, [inventories]);
+  const productById = useMemo(() => {
+    return new Map(products.map((p: any) => [p.productId || p.id, p]));
+  }, [products]);
 
   const hasInventoryData = inventories.length > 0;
 
   const displayedItems: InventoryItem[] = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const merged: InventoryItem[] = products.map((product) => {
-      const inv = inventoryByProductId.get(product.id);
+    
+    // Map INVENTORY items to Products (Reverse logic)
+    const merged: InventoryItem[] = inventories.map((inv) => {
+      const product = productById.get(inv.productId);
+
       return {
-        ...product,
-        totalQuantity: inv?.totalQuantity,
-        availableQuantity: inv?.availableQuantity,
+        ...inv,
+        productName: product?.name || `Sản phẩm ẩn/đã xóa`,
+        productPrice: product?.price,
+        hasProductInfo: !!product,
       };
     });
 
     const filtered = merged.filter((item) => {
-      if (query && !item.name.toLowerCase().includes(query)) return false;
+      if (query && !item.productName.toLowerCase().includes(query)) return false;
 
       if (statusFilter === 'all') return true;
 
       const availableQuantity = item.availableQuantity;
-      const hasData = typeof availableQuantity === 'number';
-
-      if (!hasData) return false;
-
+      
       if (statusFilter === 'in') return availableQuantity > 0;
       if (statusFilter === 'out') return availableQuantity === 0;
       if (statusFilter === 'low') return availableQuantity > 0 && availableQuantity <= lowStockThreshold;
@@ -196,37 +202,22 @@ export default function InventoryPage() {
     });
 
     filtered.sort((a, b) => {
-      return a.name.localeCompare(b.name, 'vi', { sensitivity: 'base', numeric: true });
+      // Sort by product name
+      return a.productName.localeCompare(b.productName, 'vi', { sensitivity: 'base', numeric: true });
     });
 
     return filtered;
-  }, [inventoryByProductId, lowStockThreshold, products, searchQuery, statusFilter]);
+  }, [inventories, productById, lowStockThreshold, searchQuery, statusFilter]);
 
   const outOfStockCount = useMemo(() => {
-    if (!hasInventoryData) return undefined;
-    let count = 0;
-    for (const product of products) {
-      const inv = inventoryByProductId.get(product.id);
-      if (typeof inv?.availableQuantity === 'number' && inv.availableQuantity === 0) count += 1;
-    }
-    return count;
-  }, [hasInventoryData, inventoryByProductId, products]);
+    return inventories.filter((i) => i.availableQuantity === 0).length;
+  }, [inventories]);
 
   const lowStockCount = useMemo(() => {
-    if (!hasInventoryData) return undefined;
-    let count = 0;
-    for (const product of products) {
-      const inv = inventoryByProductId.get(product.id);
-      if (
-        typeof inv?.availableQuantity === 'number' &&
-        inv.availableQuantity > 0 &&
-        inv.availableQuantity <= lowStockThreshold
-      ) {
-        count += 1;
-      }
-    }
-    return count;
-  }, [hasInventoryData, inventoryByProductId, lowStockThreshold, products]);
+    return inventories.filter(
+      (i) => i.availableQuantity > 0 && i.availableQuantity <= lowStockThreshold
+    ).length;
+  }, [inventories, lowStockThreshold]);
 
   const formatVnd = (value: number) => {
     return `${new Intl.NumberFormat('vi-VN').format(value)} ₫`;
@@ -262,7 +253,7 @@ export default function InventoryPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-100">{products.length}</div>
+              <div className="text-2xl font-bold text-slate-100">{inventories.length}</div>
             </CardContent>
           </Card>
 
@@ -381,53 +372,50 @@ export default function InventoryPage() {
                   displayedItems.map((item) => {
                     const availableQuantity = item.availableQuantity;
                     const totalQuantity = item.totalQuantity;
-                    const hasData = typeof availableQuantity === 'number' || typeof totalQuantity === 'number';
-                    const isOut = typeof availableQuantity === 'number' && availableQuantity === 0;
+                    // Always true since we are iterating over inventory items
+                    const hasData = true; 
+                    const isOut = availableQuantity === 0;
                     const isLow =
-                      typeof availableQuantity === 'number' &&
                       availableQuantity > 0 &&
                       availableQuantity <= lowStockThreshold;
-                    const isIn = typeof availableQuantity === 'number' && availableQuantity > 0 && !isLow;
+                    const isIn = availableQuantity > 0 && !isLow;
 
                     return (
                       <TableRow key={item.id} className="border-slate-800 hover:bg-slate-900/40">
                         <TableCell className="font-medium text-slate-100">
-                          <div className="max-w-[420px] truncate" title={item.name}>
-                            {item.name}
+                          <div className="max-w-[420px] truncate" title={item.productName}>
+                            {item.productName}
+                            {!item.hasProductInfo && (
+                               <span className="ml-2 text-xs text-slate-500 italic">(Không tìm thấy SP)</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-200">
-                          {typeof item.price === 'number' ? formatVnd(item.price) : '--'}
+                          {typeof item.productPrice === 'number' ? formatVnd(item.productPrice) : '--'}
                         </TableCell>
                         <TableCell>
-                          {!hasData ? (
-                            <span className="text-slate-500">--</span>
-                          ) : (
                             <div className="flex items-baseline gap-1">
                               <span className="font-semibold text-slate-100">
-                                {typeof availableQuantity === 'number' ? availableQuantity : '--'}
+                                {availableQuantity}
                               </span>
                               <span className="text-slate-500">/</span>
                               <span className="text-slate-400">
-                                {typeof totalQuantity === 'number' ? totalQuantity : '--'}
+                                {totalQuantity}
                               </span>
                             </div>
-                          )}
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={!hasData || isLow ? 'secondary' : isIn ? 'default' : 'destructive'}
+                            variant={isLow ? 'secondary' : isIn ? 'default' : 'destructive'}
                             className={cn(
-                              !hasData
-                                ? 'bg-slate-500/10 text-slate-300'
-                                : isLow
+                              isLow
                                   ? 'bg-amber-500/10 text-amber-400'
                                   : isIn
                                     ? 'bg-emerald-500/10 text-emerald-400'
                                     : 'bg-red-500/10 text-red-500'
                             )}
                           >
-                            {!hasData ? 'Chưa có dữ liệu' : isLow ? 'Sắp hết' : isIn ? 'Còn hàng' : isOut ? 'Hết hàng' : 'Hết hàng'}
+                            {isLow ? 'Sắp hết' : isIn ? 'Còn hàng' : 'Hết hàng'}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -464,7 +452,7 @@ export default function InventoryPage() {
                   >
                     <span className="truncate">
                       {selectedProductId
-                        ? products.find((p) => p.id === selectedProductId)?.name
+                        ? products.find((p) => (p.productId || p.id) === selectedProductId)?.name
                         : 'Chọn sản phẩm...'}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -478,31 +466,35 @@ export default function InventoryPage() {
                         Không tìm thấy sản phẩm
                       </CommandEmpty>
                       <CommandGroup>
-                        {sortedProducts.map((p) => (
-                          <CommandItem
-                            key={p.id}
-                            value={`${p.name}@@${p.id}`}
-                            onSelect={(value) => {
-                              const nextId = value.split('@@').pop() || '';
-                              setSelectedProductId(nextId);
-                              setProductSearchOpen(false);
-                            }}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                            }}
-                            className="text-white hover:bg-slate-800 cursor-pointer py-3 px-4 aria-selected:bg-slate-800 transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-3 h-4 w-4 text-blue-500",
-                                selectedProductId === p.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <div className="flex flex-col flex-1 overflow-hidden">
-                              <span className="font-bold truncate">{p.name}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
+                        {sortedProducts.map((p) => {
+                          const pId = p.productId || p.id;
+                          return (
+                            <CommandItem
+                              key={pId}
+                              value={`${p.name}@@${pId}`}
+                              onSelect={(value) => {
+                                const parts = value.split('@@');
+                                const nextId = parts.length > 1 ? parts[parts.length - 1] : pId;
+                                setSelectedProductId(nextId);
+                                setProductSearchOpen(false);
+                              }}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                              }}
+                              className="text-white hover:bg-slate-800 cursor-pointer py-3 px-4 aria-selected:bg-slate-800 transition-colors"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-3 h-4 w-4 text-blue-500",
+                                  selectedProductId === pId ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col flex-1 overflow-hidden">
+                                <span className="font-bold truncate">{p.name}</span>
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
                       </CommandGroup>
                     </CommandList>
                   </Command>

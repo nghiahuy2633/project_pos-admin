@@ -41,25 +41,20 @@ import { cn } from '@/lib/utils';
 import { userApi } from '@/api/apiClient';
 import type { UserResponse, CreateUserRequest, UpdateUserRequest } from '@/types/api';
 import { toast } from 'sonner';
+import { API_CONFIG, UI_MESSAGES, ROLES, USER_STATUS } from '@/constants/app';
 
 const statusConfig = {
   ACTIVE: {
-    label: 'Đang hoạt động',
+    label: USER_STATUS.ACTIVE,
     className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   },
   BANNED: {
-    label: 'Đã khóa',
+    label: USER_STATUS.BANNED,
     className: 'bg-red-500/10 text-red-400 border-red-500/20',
   },
 } as const;
 
-const roleConfig: Record<string, string> = {
-  ADMIN: 'Quản trị viên',
-  MANAGER: 'Quản lý',
-  STAFF: 'Nhân viên',
-  CASHIER: 'Thu ngân',
-  CHEF: 'Đầu bếp',
-};
+const roleConfig: Record<string, string> = ROLES;
 
 const roleColors: Record<string, string> = {
   ADMIN: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
@@ -93,7 +88,7 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const res: any = await userApi.getUsers({ page: 0, size: 100 });
+      const res: any = await userApi.getUsers({ page: 0, size: API_CONFIG.PAGINATION.MAX_SIZE });
       const rawUsers = res?.data?.items ?? res?.items ?? res?.content ?? [];
       
       const normalizedUsers = Array.isArray(rawUsers) ? rawUsers.map((u: any) => ({
@@ -111,7 +106,7 @@ export default function UsersPage() {
       setUsers(normalizedUsers);
     } catch (e) {
       console.error('Fetch users failed', e);
-      toast.error('Không thể tải danh sách nhân viên');
+      toast.error(UI_MESSAGES.ERROR.LOAD_FAILED);
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +156,7 @@ export default function UsersPage() {
       
       // Basic validation
       if (!form.username || !form.firstName || !form.lastName) {
-        toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+        toast.error(UI_MESSAGES.ERROR.MISSING_INPUT);
         return;
       }
 
@@ -175,11 +170,11 @@ export default function UsersPage() {
             phone: form.phone
         };
         await userApi.updateUser(editingUser.id, updateData);
-        toast.success('Cập nhật thành công');
+        toast.success(UI_MESSAGES.SUCCESS.UPDATE);
       } else {
         // Create
         if (form.password !== form.confirmPassword) {
-            toast.error('Mật khẩu không khớp');
+            toast.error(UI_MESSAGES.ERROR.PASSWORD_MISMATCH);
             return;
         }
         const createData: CreateUserRequest = {
@@ -189,14 +184,14 @@ export default function UsersPage() {
             roleCode: form.roleCode, // Only send roleCode on create
         };
         await userApi.createUser(createData);
-        toast.success('Thêm nhân viên thành công');
+        toast.success(UI_MESSAGES.SUCCESS.CREATE);
       }
       
       setIsDialogOpen(false);
       fetchUsers();
     } catch (e) {
       console.error('Save user failed', e);
-      toast.error('Thao tác thất bại');
+      toast.error(UI_MESSAGES.ERROR.ACTION_FAILED);
     } finally {
       setIsSubmitting(false);
     }
@@ -206,10 +201,10 @@ export default function UsersPage() {
     try {
       if (user.status === 'ACTIVE') {
         await userApi.banUser(user.id);
-        toast.success('Đã khóa tài khoản');
+        toast.success(UI_MESSAGES.SUCCESS.ACTION);
       } else {
         await userApi.activateUser(user.id);
-        toast.success('Đã kích hoạt tài khoản');
+        toast.success(UI_MESSAGES.SUCCESS.ACTION);
       }
       // Optimistic update
       setUsers(prev => prev.map(u => u.id === user.id ? {
@@ -218,7 +213,7 @@ export default function UsersPage() {
       } : u));
     } catch (e) {
       console.error('Toggle status failed', e);
-      toast.error('Thao tác thất bại');
+      toast.error(UI_MESSAGES.ERROR.ACTION_FAILED);
     }
   };
 
