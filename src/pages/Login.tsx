@@ -185,6 +185,23 @@ export default function LoginPage() {
                 "Đăng nhập"
               )}
             </Button>
+
+            <div className="mt-6 pt-6 border-t border-slate-800/50">
+              <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/30">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center mb-2">Tài khoản Demo</p>
+                <div className="flex justify-between items-center text-xs font-mono px-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-400">Email:</span>
+                    <span className="text-blue-400 font-bold">admin@pos.com</span>
+                  </div>
+                  <div className="w-px h-8 bg-slate-700/50 mx-2"></div>
+                  <div className="flex flex-col gap-1 text-right">
+                    <span className="text-slate-400">Password:</span>
+                    <span className="text-blue-400 font-bold">123456</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </form>
           </div>
         </div>
